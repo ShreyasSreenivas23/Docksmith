@@ -1,7 +1,0 @@
-FROM alpine:3.18
-WORKDIR /app
-COPY hello.sh /app/hello.sh
-COPY data.txt /app/data.txt
-ENV GREETING=Hello
-RUN chmod +x /app/hello.sh
-CMD ["/bin/sh", "/app/hello.sh"]
