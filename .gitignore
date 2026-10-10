@@ -1,0 +1,72 @@
+# Binaries
+docksmith
+*.exe
+*.out
+
+# Temp files
+*.tar
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PDF specs (optional - keep if you want them in repo)
+# *.pdf
+
+# Extracted text specs
+*_spec.txt
+
+
+#sample app
+/sample-app 
+# --- added during folder cleanup (2026-10-10)
+
+# --- dependencies / environments
+node_modules/
+venv/
+.venv/
+venv-*/
+env/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+
+# --- secrets
+.env
+.env.*
+!.env.example
+
+# --- build output / binaries
+dist/
+build/
+target/
+*.exe
+*.o
+
+# --- archives, large data, model weights
+*.zip
+*.7z
+*.rar
+*.pth
+*.pt
+*.sqlite3
+
+# --- OS / editor junk
+.DS_Store
+desktop.ini
+Thumbs.db
+__MACOSX/
+~$*
+*.log
+
