@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,13 +193,41 @@ func runRun(args []string) (int, error) {
 			}
 			envOverrides = append(envOverrides, args[i])
 		case args[i] == "--help" || args[i] == "-h":
-			fmt.Println(`Usage: docksmith run [-e KEY=VALUE]... <name:tag> [cmd...]
+			fmt.Println(`Usage: docksmith run [options] <name:tag> [cmd...]
 
 Run a container from an image.
 
 Options:
-  -e KEY=VALUE   Override or add an environment variable (repeatable)`)
+  -e KEY=VALUE       Override or add an environment variable (repeatable)
+  --userns-size N    Map container IDs 0..N-1 in the user namespace
+                     (default 1: root only; above 1 needs root)
+  --loopback         Bring lo up in the container's network namespace
+  --dev              Provide /dev/null, zero, full, random, and urandom
+  --user UID:GID     Run the command as this user (needs --userns-size)`)
 			return 0, nil
+		case imageRef == "" && args[i] == "--loopback":
+			runtime.ChildLoopback = true
+		case imageRef == "" && args[i] == "--dev":
+			runtime.ChildDev = true
+		case imageRef == "" && args[i] == "--user":
+			if i+1 >= len(args) || !strings.Contains(args[i+1], ":") {
+				return 1, fmt.Errorf("--user requires uid:gid")
+			}
+			runtime.ChildUser = args[i+1]
+			i++
+		case imageRef == "" && args[i] == "--userns-size":
+			if i+1 >= len(args) {
+				return 1, fmt.Errorf("--userns-size requires a number")
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 || n > 65536 {
+				return 1, fmt.Errorf("--userns-size %q: want 1 to 65536", args[i+1])
+			}
+			if n > 1 && os.Geteuid() != 0 {
+				return 1, fmt.Errorf("--userns-size above 1 needs root")
+			}
+			runtime.UsernsSize = n
+			i++
 		case imageRef == "":
 			imageRef = args[i]
 		default:
