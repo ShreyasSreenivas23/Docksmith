@@ -239,6 +239,19 @@ Options:
 	if imageRef == "" {
 		return 1, fmt.Errorf("missing image reference: use name:tag")
 	}
+	if runtime.ChildUser != "" {
+		// Both IDs must be mapped in the user namespace, and switching
+		// users needs a mapping wider than the default root-only one.
+		u, g, _ := strings.Cut(runtime.ChildUser, ":")
+		uid, err1 := strconv.Atoi(u)
+		gid, err2 := strconv.Atoi(g)
+		if err1 != nil || err2 != nil || uid < 0 || gid < 0 {
+			return 1, fmt.Errorf("--user %q: want numeric uid:gid", runtime.ChildUser)
+		}
+		if runtime.UsernsSize < 2 || uid >= runtime.UsernsSize || gid >= runtime.UsernsSize {
+			return 1, fmt.Errorf("--user %s needs --userns-size larger than %d", runtime.ChildUser, max(uid, gid, 1))
+		}
+	}
 
 	name, tag := parseNameTag(imageRef)
 	return runtime.Run(name, tag, envOverrides, cmdOverride)
