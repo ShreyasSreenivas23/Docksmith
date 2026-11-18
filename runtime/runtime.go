@@ -57,7 +57,15 @@ func isolationSysProcAttr() *syscall.SysProcAttr {
 			HostID:      os.Getgid(),
 			Size:        1,
 		}}
-		attr.GidMappingsEnableSetgroups = false
+		if UsernsSize > 1 {
+			// IDs above 0 go to an unused host range, not to the host's own users.
+			extra := syscall.SysProcIDMap{ContainerID: 1, HostID: UsernsHostBase + 1, Size: UsernsSize - 1}
+			attr.UidMappings = append(attr.UidMappings, extra)
+			attr.GidMappings = append(attr.GidMappings, extra)
+		}
+		// setgroups stays denied with the default single mapping, as before;
+		// a wider mapping allows it so the service can drop its groups.
+		attr.GidMappingsEnableSetgroups = UsernsSize > 1
 	}
 	return attr
 }
@@ -85,7 +93,7 @@ func RunIsolated(rootDir string, command []string, workdir string, envVars []str
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = envVars
+	cmd.Env = withChildSetup(envVars)
 
 	cmd.SysProcAttr = isolationSysProcAttr()
 
@@ -110,6 +118,14 @@ func ChildProcess(args []string) error {
 	mode := args[2]
 	cmdArgs := args[3:]
 
+	setup, err := takeChildSetup()
+	if err != nil {
+		return err
+	}
+	if err := setup.beforeChroot(rootDir); err != nil {
+		return err
+	}
+
 	// Mount proc inside the new root.
 	procPath := filepath.Join(rootDir, "proc")
 	os.MkdirAll(procPath, 0755)
@@ -127,6 +143,10 @@ func ChildProcess(args []string) error {
 
 	// Set hostname.
 	syscall.Sethostname([]byte("docksmith"))
+
+	if err := setup.afterChroot(); err != nil {
+		return err
+	}
 
 	if err := dropCapabilities(); err != nil {
 		return fmt.Errorf("drop capabilities: %w", err)
